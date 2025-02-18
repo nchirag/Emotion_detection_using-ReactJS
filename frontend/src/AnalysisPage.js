@@ -1,6 +1,9 @@
 import React, { useRef, useState } from "react";
 import Webcam from "react-webcam";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import 'jspdf-autotable'; 
 
 const AnalysisPage = () => {
   const webcamRef = useRef(null);
@@ -75,6 +78,50 @@ const AnalysisPage = () => {
     setEmotion("Analysis Stopped");
   };
 
+  const downloadReport = () => {
+    // Capture the chart container
+    const chartContainer = document.getElementById("chart-container");
+  
+    if (chartContainer) {
+      html2canvas(chartContainer).then((canvas) => {
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("landscape");
+  
+        // Add a title to the PDF
+        pdf.setFontSize(20);
+        pdf.text("Emotion Detection Report", 10, 20);
+  
+        // Add the chart image to the PDF
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdf.addImage(imgData, "PNG", 10, 30, pdfWidth - 20, pdfHeight);
+  
+        // Add emotion data in a table below the chart
+        pdf.setFontSize(12);
+        const tableStartY = 30 + pdfHeight + 10; // Add space after the chart
+        pdf.text("Emotion Frequency Table:", 10, tableStartY);
+        const tableData = emotionData.map((item, index) => [item.emotion, item.count]);
+  
+        // Set table headers
+        pdf.autoTable({
+          startY: tableStartY + 10, // Start after the title
+          head: [["Emotion", "Count"]],
+          body: tableData,
+          theme: "grid",
+          styles: { fontSize: 12 },
+          headStyles: { fillColor: [0, 0, 255], textColor: [255, 255, 255] },
+          margin: { top: 5, left: 10, right: 10 },
+          columnStyles: { 0: { halign: "center" }, 1: { halign: "center" } },
+        });
+  
+        // Save the formatted PDF
+        pdf.save("emotion_detection_report.pdf");
+      });
+    }
+  };
+  
+
   return (
     <div style={{ textAlign: "center", padding: "20px" }}>
       <h2>Live Emotion Detection</h2>
@@ -88,15 +135,21 @@ const AnalysisPage = () => {
       </button>
 
       <h3>Emotion Frequency Chart</h3>
-      <ResponsiveContainer width="90%" height={300}>
-        <BarChart data={emotionData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="emotion" />
-          <YAxis />
-          <Tooltip />
-          <Bar dataKey="count" fill="#8884d8" />
-        </BarChart>
-      </ResponsiveContainer>
+      <div id="chart-container">
+        <ResponsiveContainer width="90%" height={300}>
+          <BarChart data={emotionData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="emotion" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="count" fill="#8884d8" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <button onClick={downloadReport} style={buttonStyle}>
+        Download Report
+      </button>
     </div>
   );
 };
